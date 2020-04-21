@@ -7,7 +7,7 @@ module.exports = {
     electronBuilder: {
       builderOptions: {
         // options placed here will be merged with default configuration and passed to electron-builder
-        appId: "liaorenj@gmail.com",
+        appId: "liaorenj@gmail.com.soblogd",
         productName: "soblogd",
         icon: "./utils/favicon.ico",
         nsis:{

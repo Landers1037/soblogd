@@ -9,23 +9,47 @@ import {
 } from 'vue-cli-plugin-electron-builder/lib'
 import fa from "element-ui/src/locale/lang/fa";
 import el from "element-ui/src/locale/lang/el";
-const isDevelopment = process.env.NODE_ENV !== 'production'
+const isDevelopment = process.env.NODE_ENV !== 'production';
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
-let win;
-let welcome;
+let win,welcome;
 
 // Scheme must be registered before the app is ready
-protocol.registerSchemesAsPrivileged([{scheme: 'app', privileges: { secure: true, standard: true } }])
+protocol.registerSchemesAsPrivileged([{scheme: 'app', privileges: { secure: true, standard: true } }]);
 
+function createWelcome() {
+  welcome = new BrowserWindow({ width: 500, height: 320,
+    icon: './utils/icon.png',
+    show: false,
+    backgroundColor: '#2f343f',
+    frame: false,
+    parent: win,
+    modal: true,
+    webPreferences: {
+      nodeIntegration: true,
+    }
+  });
+  if(isDevelopment){
+    welcome.loadURL('http://localhost:8080/#/welcome')
+  }else{
+    createProtocol('app');
+    welcome.loadURL('app://./index.html#/welcome')
+  }
+  welcome.once('ready-to-show',()=>{
+    welcome.show();
+    //加载时创建主窗口对象
+    createWindow();
+  });
+  welcome.on('closed', () => {
+    welcome = null
+  })
+}
 function createWindow () {
   // Create the browser window.
   win = new BrowserWindow({ width: 800, height: 500,
     icon: './utils/icon.png',
     show: false,
-    minHeight: 500,
-    minWidth: 640,
     backgroundColor: '#2f343f',
     frame: false,
     webPreferences: {
@@ -35,40 +59,28 @@ function createWindow () {
 
   if (process.env.WEBPACK_DEV_SERVER_URL) {
     // Load the url of the dev server if in development mode
-    win.loadURL(process.env.WEBPACK_DEV_SERVER_URL);
-    if (!process.env.IS_TEST) win.webContents.openDevTools()
+    // win.loadURL(process.env.WEBPACK_DEV_SERVER_URL);
+    win.loadURL('http://localhost:8080/');
+    if (!process.env.IS_TEST) win.webContents.openDevTools();
   } else {
     createProtocol('app');
     // Load the index.html when not in development
     win.loadURL('app://./index.html');
     // win.webContents.openDevTools();
   }
-
+  win.once('ready-to-show',()=>{
+    setTimeout(()=>{
+      welcome.hide();
+      welcome.close();
+      welcome = null;
+    },2000);
+    setTimeout(()=>{
+      win.show();
+      win.center();
+    },4000);
+  });
   win.on('closed', () => {
     win = null
-  })
-}
-
-function createWelcome(){
-  welcome = new BrowserWindow({
-    width: 520,height: 320,
-    backgroundColor: '#2c2f34',
-    frame: false,
-    webPreferences:{
-      nodeIntegration: true
-    }
-  });
-  if(isDevelopment){
-    welcome.loadURL('http://localhost:8080/#/welcome');
-  }else {
-    createProtocol('app');
-    welcome.loadURL('app://./index.html#/welcome')
-  }
-  setTimeout(()=>{
-    welcome.hide();
-  },3500);
-  welcome.on('colse',()=>{
-    welcome = null;
   })
 }
 
@@ -79,7 +91,7 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
-})
+});
 
 app.on('activate', () => {
   // On macOS it's common to re-create a window in the app when the
@@ -107,16 +119,10 @@ app.on('ready', async () => {
     // }
 
   }
-  createWelcome();
   //为了优化性能先渲染页面，隐藏，延时后显示
-  setTimeout(()=>{
-    createWindow();
-  },1000);
-  setTimeout(()=>{
-    welcome.close();
-    win.show();
-  },4500);
+
   //关闭欢迎页
+  createWelcome();
 });
 
 // Exit cleanly on request from parent process in development mode.
@@ -142,6 +148,8 @@ ipcMain.on('min',()=>{
 ipcMain.on('full',()=>{
   if(win.isMaximized()){
     win.unmaximize();
+    win.setSize(800,500,true);
+    win.center();
   }else{
     win.maximize();
   }
@@ -149,4 +157,9 @@ ipcMain.on('full',()=>{
 
 ipcMain.on('close',()=>{
   win.close();
+});
+
+ipcMain.on('clean',()=>{
+  win.webContents.session.clearCache();
+  win.reload();
 });
